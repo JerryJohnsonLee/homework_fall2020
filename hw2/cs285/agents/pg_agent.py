@@ -3,6 +3,7 @@ import numpy as np
 from .base_agent import BaseAgent
 from cs285.policies.MLP_policy import MLPPolicyPG
 from cs285.infrastructure.replay_buffer import ReplayBuffer
+from cs285.infrastructure import utils
 
 
 class PGAgent(BaseAgent):
@@ -46,7 +47,7 @@ class PGAgent(BaseAgent):
 
         # TODO: step 3: use all datapoints (s_t, a_t, q_t, adv_t) to update the PG actor/policy
         ## HINT: `train_log` should be returned by your actor update method
-        train_log = TODO
+        train_log = self.actor.update(observations, actions, advantages, q_values)
 
         return train_log
 
@@ -91,7 +92,7 @@ class PGAgent(BaseAgent):
             ## have the same mean and standard deviation as the current batch of q_values
             baselines = baselines_unnormalized * np.std(q_values) + np.mean(q_values)
             ## TODO: compute advantage estimates using q_values and baselines
-            advantages = TODO
+            advantages = q_values - baselines
 
         # Else, just set the advantage to [Q]
         else:
@@ -102,7 +103,7 @@ class PGAgent(BaseAgent):
             ## TODO: standardize the advantages to have a mean of zero
             ## and a standard deviation of one
             ## HINT: there is a `normalize` function in `infrastructure.utils`
-            advantages = TODO
+            advantages = utils.normalize(advantages, np.mean(advantages), np.std(advantages))
 
         return advantages
 
@@ -131,7 +132,9 @@ class PGAgent(BaseAgent):
         # TODO: create list_of_discounted_returns
         # Hint: note that all entries of this output are equivalent
             # because each sum is from 0 to T (and doesnt involve t)
-
+        discount_factors = np.array([self.gamma ** n for n in range(len(rewards))])
+        discounted_return = np.sum(discount_factors * rewards)
+        list_of_discounted_returns = [discounted_return for _ in rewards]
         return list_of_discounted_returns
 
     def _discounted_cumsum(self, rewards):
@@ -146,6 +149,9 @@ class PGAgent(BaseAgent):
             # because the summation happens over [t, T] instead of [0, T]
         # HINT2: it is possible to write a vectorized solution, but a solution
             # using a for loop is also fine
-
+        discount_factors_at_zero = [self.gamma ** n for n in range(len(rewards))]
+        total_T = len(rewards)
+        discount_factors = np.array([[0] * n + discount_factors_at_zero[: (total_T - n)] for n in range(total_T)])
+        list_of_discounted_cumsums = np.matmul(discount_factors, rewards)
         return list_of_discounted_cumsums
 
