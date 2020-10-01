@@ -9,7 +9,7 @@ def get_section_results(file):
     Y = []
     for e in tf.train.summary_iterator(file):
         for v in e.summary.value:
-            if v.tag == 'Train_EnvstepsSoFar':
+            if v.tag == 'TimeSinceStart':
                 X.append(v.simple_value)
             elif v.tag == 'Eval_AverageReturn':
                 Y.append(v.simple_value)

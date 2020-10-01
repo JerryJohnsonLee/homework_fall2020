@@ -62,7 +62,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
                 itertools.chain([self.logstd], self.mean_net.parameters()),
                 self.learning_rate
             )
-
+        self.device = str(ptu.device)
         if nn_baseline:
             self.baseline = ptu.build_mlp(
                 input_size=self.ob_dim,
@@ -92,8 +92,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
             observation = obs
         else:
             observation = obs[None]
-
-        observation = ptu.from_numpy(observation)
+        observation = torch.from_numpy(observation).float().to(self.device)
         with torch.no_grad():
             dist = self.forward(observation)
         action = dist.sample()
@@ -117,6 +116,16 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         else:
             dist = distributions.Normal(self.mean_net(observation), torch.exp(self.logstd))
         return dist
+
+    def to(self, device):
+        if self.logits_na is not None:
+            self.logits_na.to(device)
+        if self.mean_net is not None:
+            self.mean_net.to(device)
+        if self.logstd is not None:
+            self.logstd.data = self.logstd.data.to(device)
+        self.device = device
+        return self
 
 
 #####################################################
@@ -143,7 +152,8 @@ class MLPPolicyPG(MLPPolicy):
         
         dist = self(observations)
         log_probs = dist.log_prob(actions)
-        loss = -(log_probs * advantages).sum(axis=-1).mean()
+        loss = -(log_probs * advantages.view((-1, 1))).sum(axis=-1).mean()
+        # loss = -(log_probs * advantages).sum(axis=-1).mean()
 
         # TODO: optimize `loss` using `self.optimizer`
         # HINT: remember to `zero_grad` first
@@ -159,7 +169,7 @@ class MLPPolicyPG(MLPPolicy):
 
             ## TODO: use the `forward` method of `self.baseline` to get baseline predictions
             
-            baseline_predictions = self.baseline(observations)
+            baseline_predictions = self.baseline(observations).squeeze()
             
             ## avoid any subtle broadcasting bugs that can arise when dealing with arrays of shape
             ## [ N ] versus shape [ N x 1 ]

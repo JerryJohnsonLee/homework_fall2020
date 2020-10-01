@@ -9,9 +9,13 @@ from gym import wrappers
 import numpy as np
 import torch
 from cs285.infrastructure import pytorch_util as ptu
-
+torch.multiprocessing.set_start_method("spawn", force=True)
 from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
+
+import multiprocessing
+import copy
+import math
 
 # how many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
@@ -152,7 +156,7 @@ class RL_Trainer(object):
     def collect_training_trajectories(self, itr, load_initial_expertdata, collect_policy, batch_size):
         # TODO: get this from hw1
         # if your load_initial_expertdata is None, then you need to collect new trajectories at *every* iteration
-        if load_initial_expertdata is not None:
+        if load_initial_expertdata is not None and itr == 0:
             import pickle
             with open(load_initial_expertdata, "rb") as handle:
                 loaded_paths = pickle.load(handle)
@@ -160,6 +164,26 @@ class RL_Trainer(object):
 
         print("\nCollecting data to be used for training...")
         paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, batch_size, self.params['ep_len'])
+        # from torch import multiprocessing
+
+        # N_WORKERS = 4
+        # if batch_size / N_WORKERS < 5 * self.params['ep_len']:
+        #     paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, batch_size, self.params['ep_len'])
+        # else:
+        #     pool = multiprocessing.Pool(N_WORKERS)
+        #     copied_envs = [copy.deepcopy(self.env) for _ in range(N_WORKERS)]
+        #     for i in range(N_WORKERS):
+        #         copied_envs[i].seed(self.params["seed"] + i)
+        #     cpu_policy = copy.deepcopy(collect_policy).to("cpu").share_memory()
+        #     copied_policies = [cpu_policy for _ in range(N_WORKERS)]
+        #     process_batch_size = [math.floor(batch_size / N_WORKERS) for _ in range(N_WORKERS)]
+        #     ep_lens = [self.params['ep_len'] for _ in range(N_WORKERS)]
+        #     returned_contents = pool.starmap(utils.sample_trajectories, zip(copied_envs, copied_policies, process_batch_size, ep_lens))
+        #     paths = []
+        #     envsteps_this_batch = 0
+        #     for i in range(N_WORKERS):
+        #         paths.extend(returned_contents[i][0])
+        #         envsteps_this_batch += returned_contents[i][1]
 
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
