@@ -201,11 +201,30 @@ class RL_Trainer(object):
             train_video_paths: paths which also contain videos for visualization purposes
         """
         # TODO: get this from hw1 or hw2
+        if initial_expertdata is not None and itr == 0:
+            import pickle
+            with open(initial_expertdata, "rb") as handle:
+                loaded_paths = pickle.load(handle)
+            return loaded_paths, 0, None
+        
+        paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, self.params['ep_len'], num_transitions_to_sample)
 
+        train_video_paths = None
+        if self.log_video:
+            print('\nCollecting train rollouts to be used for saving videos...')
+            train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
         return paths, envsteps_this_batch, train_video_paths
 
     def train_agent(self):
         # TODO: get this from hw1 or hw2
+        train_logs = []
+        for train_step in range(self.params['num_agent_train_steps_per_iter']):
+            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self.agent.sample(self.params['train_batch_size'])
+
+
+            train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
+            train_logs.append(train_log)
+        return train_logs
 
     ####################################
     ####################################
