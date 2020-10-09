@@ -72,7 +72,7 @@ def get_env_kwargs(env_name):
             'num_timesteps': 500000,
             'env_wrappers': lunar_empty_wrapper
         }
-        kwargs['exploration_schedule'] = lander_exploration_schedule(kwargs['num_timesteps'])
+        kwargs['exploration_schedule'] = lander_exploration_schedule_tune(kwargs['num_timesteps'])
 
     else:
         raise NotImplementedError
@@ -138,6 +138,7 @@ def atari_ram_exploration_schedule(num_timesteps):
     )
 
 
+
 def atari_optimizer(num_timesteps):
     lr_schedule = PiecewiseSchedule(
         [
@@ -174,6 +175,14 @@ def lander_exploration_schedule(num_timesteps):
             (0, 1),
             (num_timesteps * 0.1, 0.02),
         ], outside_value=0.02
+    )
+
+def lander_exploration_schedule_tune(num_timesteps):
+    return PiecewiseSchedule(
+        [
+            (0, 0.01),
+            (num_timesteps * 0.1, 0.01),
+        ], outside_value=0.01
     )
 
 

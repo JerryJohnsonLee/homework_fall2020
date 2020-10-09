@@ -207,10 +207,10 @@ class RL_Trainer(object):
                 loaded_paths = pickle.load(handle)
             return loaded_paths, 0, None
         
-        paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, self.params['ep_len'], num_transitions_to_sample)
+        paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, num_transitions_to_sample, self.params['ep_len'])
 
         train_video_paths = None
-        if self.log_video:
+        if self.logvideo:
             print('\nCollecting train rollouts to be used for saving videos...')
             train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
         return paths, envsteps_this_batch, train_video_paths

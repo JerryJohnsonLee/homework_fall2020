@@ -6,6 +6,7 @@ from cs285.infrastructure.replay_buffer import ReplayBuffer
 from cs285.infrastructure.utils import *
 from cs285.policies.MLP_policy import MLPPolicyAC
 from .base_agent import BaseAgent
+from cs285.infrastructure import pytorch_util as ptu
 
 
 class ACAgent(BaseAgent):
@@ -41,8 +42,13 @@ class ACAgent(BaseAgent):
         #     update the actor
 
         loss = OrderedDict()
-        loss['Critic_Loss'] = TODO
-        loss['Actor_Loss'] = TODO
+        for _ in range(self.agent_params["num_critic_updates_per_agent_update"]):
+            critic_loss = self.critic.update(ob_no, ac_na, next_ob_no, re_n, terminal_n)
+        advantage = self.estimate_advantage(ob_no, next_ob_no, re_n, terminal_n)
+        for _ in range(self.agent_params["num_actor_updates_per_agent_update"]):
+            actor_loss = self.actor.update(ob_no, ac_na, advantage)
+        loss['Critic_Loss'] = critic_loss
+        loss['Actor_Loss'] = actor_loss
 
         return loss
 
@@ -53,7 +59,12 @@ class ACAgent(BaseAgent):
         # 3) estimate the Q value as Q(s, a) = r(s, a) + gamma*V(s')
         # HINT: Remember to cut off the V(s') term (ie set it to 0) at terminal states (ie terminal_n=1)
         # 4) calculate advantage (adv_n) as A(s, a) = Q(s, a) - V(s)
-        adv_n = TODO
+        ob_no = ptu.from_numpy(ob_no)
+        next_ob_no = ptu.from_numpy(next_ob_no)
+        Vst = ptu.to_numpy(self.critic(ob_no))
+        Vstp1 = ptu.to_numpy(self.critic(next_ob_no))
+        Q_values = re_n + self.gamma * Vstp1 * np.logical_not(terminal_n)
+        adv_n = Q_values - Vst
 
         if self.standardize_advantages:
             adv_n = (adv_n - np.mean(adv_n)) / (np.std(adv_n) + 1e-8)
