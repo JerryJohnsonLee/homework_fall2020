@@ -1,5 +1,7 @@
 import glob
 import tensorflow as tf
+import numpy as np
+import pandas as pd
 
 def get_section_results(file):
     """
@@ -14,6 +16,20 @@ def get_section_results(file):
             elif v.tag == 'Eval_AverageReturn':
                 Y.append(v.simple_value)
     return X, Y
+
+def get_results_dataframe(file):
+    rtn_dict = {}
+    for e in tf.train.summary_iterator(file):
+        for v in e.summary.value:
+            if v.tag in rtn_dict:
+                rtn_dict[v.tag].append(v.simple_value)
+            else:
+                rtn_dict[v.tag] = [v.simple_value]
+    max_len = max([len(arr) for arr in rtn_dict.values()])
+    for category in rtn_dict:
+        rtn_dict[category] += [np.nan] * (max_len - len(rtn_dict[category]))
+    df = pd.DataFrame.from_dict(rtn_dict)
+    return df
 
 if __name__ == '__main__':
     import glob

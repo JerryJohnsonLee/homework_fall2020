@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.core.fromnumeric import size
+from torch import random
 
 from .base_policy import BasePolicy
 
@@ -34,6 +36,7 @@ class MPCPolicy(BasePolicy):
         # TODO(Q1) uniformly sample trajectories and return an array of
         # dimensions (num_sequences, horizon, self.ac_dim) in the range
         # [self.low, self.high]
+        random_action_sequences = np.random.uniform(low=self.low, high=self.high, size=(num_sequences, horizon, self.ac_dim))
         return random_action_sequences
 
     def get_action(self, obs):
@@ -58,8 +61,8 @@ class MPCPolicy(BasePolicy):
             predicted_sum_of_rewards_per_model, axis=0)  # [ens, N] --> N
 
         # pick the action sequence and return the 1st element of that sequence
-        best_action_sequence = None  # TODO (Q2)
-        action_to_take = None  # TODO (Q2)
+        best_action_sequence = candidate_action_sequences[np.argmax(predicted_rewards)]   # TODO (Q2)
+        action_to_take = best_action_sequence[0]  # TODO (Q2)
         return action_to_take[None]  # Unsqueeze the first index
 
     def calculate_sum_of_rewards(self, obs, candidate_action_sequences, model):
@@ -75,7 +78,20 @@ class MPCPolicy(BasePolicy):
         :return: numpy array with the sum of rewards for each action sequence.
         The array should have shape [N].
         """
-        sum_of_rewards = None  # TODO (Q2)
+        rewards = []
+        obs = np.array([obs] * candidate_action_sequences.shape[0])
+        not_done_indices = np.array([True] * candidate_action_sequences.shape[0])
+        for h in range(candidate_action_sequences.shape[1]):
+            current_actions = candidate_action_sequences[not_done_indices, h]
+            timestep_rewards, done = self.env.get_reward(obs, current_actions)
+            timestep_all_rewards = np.zeros_like(not_done_indices, dtype=timestep_rewards.dtype) - 5 # Make sure ending an episode early is bad
+            timestep_all_rewards[not_done_indices] = timestep_rewards
+            rewards.append(timestep_all_rewards)
+            not_done_actions = current_actions[np.logical_not(done.astype(bool))]
+            not_done_obs = obs[np.logical_not(done.astype(bool))]
+            obs = model.get_prediction(not_done_obs, not_done_actions, self.data_statistics)
+            not_done_indices[not_done_indices] = np.logical_not(done.astype(bool))
+        sum_of_rewards = np.sum(rewards, axis=0)  # TODO (Q2)
         # For each candidate action sequence, predict a sequence of
         # states for each dynamics model in your ensemble.
         # Once you have a sequence of predicted states from each model in
